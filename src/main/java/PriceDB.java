@@ -2,6 +2,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
 import java.util.Properties;
+import javax.sql.DataSource;
+import com.mysql.cj.jdbc.MysqlDataSource;
 
 public class PriceDB {
     private static final String QUERY = """
@@ -9,17 +11,18 @@ public class PriceDB {
             FROM Beverage
             WHERE SizeType = ? AND DrinkType = ?
             """;
-    private final Connection connection;
+    private final DataSource dataSource;
     private final PreparedStatement preparedStatement;
+    private Connection connection;
 
     public PriceDB() {
         Properties config = new Properties();
         try (FileInputStream input = new FileInputStream("src/main/resources/config.properties")) {
             config.load(input);
-            /*A NEW PROPERTIES FILE WILL BE NEEDED WITH:
-                db.url=jdbc:mysql://localhost:3306/database_name
-                db.username=root
-                 db.password=your_password
+            /* A NEW PROPERTIES FILE WILL BE NEEDED WITH:
+               db.url=jdbc:mysql://localhost:3306/database_name
+               db.username=root
+               db.password=your_password
             */
         } catch (IOException e) {
             throw new RuntimeException("Failed to load configuration file.", e);
@@ -29,8 +32,14 @@ public class PriceDB {
         String dbUsername = config.getProperty("db.username");
         String dbPassword = config.getProperty("db.password");
 
+        MysqlDataSource mysqlDataSource = new MysqlDataSource();
+        mysqlDataSource.setURL(dbUrl);
+        mysqlDataSource.setUser(dbUsername);
+        mysqlDataSource.setPassword(dbPassword);
+        this.dataSource = mysqlDataSource;
+
         try {
-            connection = DriverManager.getConnection(dbUrl, dbUsername, dbPassword);
+            connection = dataSource.getConnection();
             preparedStatement = connection.prepareStatement(QUERY);
         } catch (SQLException e) {
             throw new RuntimeException("Database connection failed.", e);
